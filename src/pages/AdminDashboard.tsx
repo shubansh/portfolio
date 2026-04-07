@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LogOut, User, FolderArchive, Video, Save, Plus, Trash2, X, Upload, Edit } from 'lucide-react';
+import { LogOut, User, FolderArchive, Video, Save, Plus, Trash2, X, Upload, Edit, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const PREDEFINED_TAGS = ['Design', 'Video Editing', 'Gaming', 'Web Development', 'AI', 'Social Media'];
 
 const AdminDashboard = () => {
   const [session, setSession] = useState<any>(null);
@@ -23,8 +25,14 @@ const AdminDashboard = () => {
   // Project Modals Data
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editProjectId, setEditProjectId] = useState<string | null>(null);
-  const [newProject, setNewProject] = useState({ title: '', description: '', live_url: '', github_url: '', tags: '', existing_image_url: '' });
+  const [newProject, setNewProject] = useState<{
+    title: string, description: string, live_url: string, github_url: string, tags: string[], existing_image_url: string
+  }>({ title: '', description: '', live_url: '', github_url: '', tags: [], existing_image_url: '' });
   const [projectImageFile, setProjectImageFile] = useState<File | null>(null);
+
+  // Tag Input State Variables
+  const [tagInputText, setTagInputText] = useState('');
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
 
   // Video Modals Data
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -78,7 +86,6 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
-  // Generic File Uploader pointing to portfolio-assets
   const uploadToStorage = async (file: File) => {
     const fileExt = file.name.split('.').pop();
     const isPdf = fileExt?.toLowerCase() === 'pdf';
@@ -141,8 +148,9 @@ const AdminDashboard = () => {
   // PROJECT FUNCTIONS
   const openNewProjectModal = () => {
     setEditProjectId(null);
-    setNewProject({ title: '', description: '', live_url: '', github_url: '', tags: '', existing_image_url: '' });
+    setNewProject({ title: '', description: '', live_url: '', github_url: '', tags: [], existing_image_url: '' });
     setProjectImageFile(null);
+    setTagInputText('');
     setIsProjectModalOpen(true);
   };
 
@@ -153,11 +161,31 @@ const AdminDashboard = () => {
       description: project.description || '',
       live_url: project.live_url || '',
       github_url: project.github_url || '',
-      tags: project.tags ? project.tags.join(', ') : '',
+      tags: project.tags ? project.tags : [],
       existing_image_url: project.image_url || ''
     });
     setProjectImageFile(null);
+    setTagInputText('');
     setIsProjectModalOpen(true);
+  };
+
+  const toggleTag = (tag: string) => {
+    if (newProject.tags.includes(tag)) {
+      setNewProject(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+    } else {
+      setNewProject(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+    }
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tagInputText.trim() !== '') {
+      e.preventDefault();
+      const customTag = tagInputText.trim();
+      if (!newProject.tags.includes(customTag)) {
+        setNewProject(prev => ({ ...prev, tags: [...prev.tags, customTag] }));
+      }
+      setTagInputText('');
+    }
   };
 
   const handleAddProjectSubmit = async (e: React.FormEvent) => {
@@ -173,19 +201,16 @@ const AdminDashboard = () => {
          throw new Error("Project Feature Image is strictly required!");
       }
 
-      const tagsArray = newProject.tags.split(',').map(t => t.trim()).filter(Boolean);
-
       const projectData = {
         title: newProject.title,
         description: newProject.description,
         live_url: newProject.live_url,
         github_url: newProject.github_url,
-        tags: tagsArray,
+        tags: newProject.tags,
         image_url: publicImageUrl
       };
 
       if (editProjectId) {
-        // Update existing
         const { data, error } = await supabase.from('projects').update(projectData).eq('id', editProjectId).select();
         if (error) throw error;
         if (data) {
@@ -193,7 +218,6 @@ const AdminDashboard = () => {
           alert("Project updated successfully!");
         }
       } else {
-        // Insert new
         const { data, error } = await supabase.from('projects').insert([projectData]).select();
         if (error) throw error;
         if (data) {
@@ -259,7 +283,6 @@ const AdminDashboard = () => {
       };
 
       if (editVideoId) {
-        // Update existing
         const { data, error } = await supabase.from('videos').update(videoData).eq('id', editVideoId).select();
         if (error) throw error;
         if (data) {
@@ -267,7 +290,6 @@ const AdminDashboard = () => {
           alert("Video updated successfully!");
         }
       } else {
-        // Insert new
         const { data, error } = await supabase.from('videos').insert([videoData]).select();
         if (error) throw error;
         if (data) {
@@ -393,13 +415,21 @@ const AdminDashboard = () => {
                   <div key={project.id} className="bg-black/30 border border-white/10 rounded-lg p-6 flex gap-6 items-start relative group transition-all">
                     {project.image_url && <img src={project.image_url} alt="ProjectImg" className="w-32 h-24 object-cover rounded-md border border-white/10 hidden md:block" />}
                     <div className="flex-1 space-y-2">
-                      <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                        {project.title}
-                        <span className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded">Views: {project.views || 0}</span>
-                      </h3>
+                       <div className="flex justify-between items-start">
+                          <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                            {project.title}
+                            <span className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded">Views: {project.views || 0}</span>
+                          </h3>
+                       </div>
                       <p className="text-gray-400 text-sm line-clamp-2">{project.description}</p>
+                      
+                      {/* Render Badges on Row Elements */}
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {project.tags && project.tags.map((tag: string, i: number) => <span key={i} className="text-xs px-2 py-1 bg-white/10 rounded">{tag}</span>)}
+                        {project.tags && project.tags.map((tag: string, i: number) => (
+                           <span key={i} className="text-[10px] px-2 py-1 font-bold tracking-wider rounded-full bg-[var(--color-neon-purple)]/10 text-[var(--color-neon-purple)] border border-[var(--color-neon-purple)]/30 uppercase shadow-sm">
+                             {tag}
+                           </span>
+                        ))}
                       </div>
                     </div>
                     
@@ -468,9 +498,9 @@ const AdminDashboard = () => {
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-[var(--color-primary-dark)] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(176,38,255,0.15)]"
+              className="bg-[var(--color-primary-dark)] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(176,38,255,0.15)] overflow-visible"
             >
-              <div className="sticky top-0 bg-[var(--color-primary-dark)] border-b border-white/10 p-6 flex justify-between items-center z-10">
+              <div className="sticky top-0 bg-[var(--color-primary-dark)] border-b border-white/10 p-6 flex justify-between items-center z-20">
                 <h2 className="text-2xl font-bold text-white">{editProjectId ? 'Edit Project' : 'Add New Project'}</h2>
                 <button onClick={() => setIsProjectModalOpen(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
               </div>
@@ -511,9 +541,90 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-gray-400 mb-2">Tags (Comma Separated e.g. Game, Web, Design)</label>
-                  <input type="text" value={newProject.tags} onChange={e => setNewProject({...newProject, tags: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:ring-2 focus:ring-[var(--color-neon-purple)] focus:outline-none" />
+                {/* ADVANCED HEADLESS MULTI-SELECT TAGS UI */}
+                <div className="relative">
+                  <label className="block text-gray-400 mb-2">Tags (Multi-Select)</label>
+                  
+                  {/* Selected Tags Display */}
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {newProject.tags.map(tag => (
+                      <span key={tag} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-neon-purple)]/20 text-[var(--color-neon-purple)] font-bold text-xs rounded-full border border-[var(--color-neon-purple)]/40 shadow-sm transition-all shadow-[0_0_10px_rgba(176,38,255,0.2)]">
+                        {tag}
+                        <button type="button" onClick={() => toggleTag(tag)} className="hover:bg-white/20 p-0.5 rounded-full transition-colors"><X size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Dropdown Actuator */}
+                  <div className="relative">
+                    <div 
+                       className="w-full bg-black/50 border border-white/10 rounded p-3 flex items-center gap-2 cursor-text focus-within:ring-2 focus-within:ring-[var(--color-neon-purple)] transition-all"
+                       onClick={() => setIsTagDropdownOpen(true)}
+                    >
+                      <Search size={16} className="text-gray-500" />
+                      <input 
+                        type="text" 
+                        value={tagInputText}
+                        onChange={e => {
+                          setTagInputText(e.target.value);
+                          setIsTagDropdownOpen(true);
+                        }}
+                        onKeyDown={handleTagKeyDown}
+                        onFocus={() => setIsTagDropdownOpen(true)}
+                        placeholder="Search predefined or type custom & press Enter..." 
+                        className="bg-transparent border-none outline-none text-white w-full text-sm placeholder-gray-600"
+                      />
+                    </div>
+                    
+                    {/* Animated Dropdown Menu */}
+                    <AnimatePresence>
+                      {isTagDropdownOpen && (
+                        <>
+                          {/* Invisible backdrop to catch off-clicks */}
+                          <div className="fixed inset-0 z-10" onClick={() => setIsTagDropdownOpen(false)}></div>
+                          
+                          <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute top-full mt-2 w-full bg-[#111] border border-[var(--color-neon-purple)]/40 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-20 overflow-hidden"
+                          >
+                            <div className="max-h-48 overflow-y-auto w-full p-2 space-y-1">
+                              {PREDEFINED_TAGS.filter(tag => tag.toLowerCase().includes(tagInputText.toLowerCase())).map(tag => {
+                                const isSelected = newProject.tags.includes(tag);
+                                return (
+                                  <div 
+                                    key={tag} 
+                                    className={`px-4 py-2 cursor-pointer rounded-md text-sm font-bold transition-all ${isSelected ? 'bg-[var(--color-neon-purple)] text-black shadow-[0_0_15px_var(--color-neon-purple)] hover:opacity-90' : 'text-gray-300 hover:bg-white/10'}`}
+                                    onClick={() => toggleTag(tag)}
+                                  >
+                                    {tag}
+                                  </div>
+                                )
+                              })}
+                              
+                              {/* Custom Formatter feedback */}
+                              {tagInputText.trim() !== '' && !PREDEFINED_TAGS.some(t => t.toLowerCase() === tagInputText.trim().toLowerCase()) && (
+                                 <div 
+                                    className="px-4 py-2 cursor-pointer text-sm font-bold text-[var(--color-neon-purple)] hover:bg-white/10 transition-colors flex items-center gap-2"
+                                    onClick={() => {
+                                      toggleTag(tagInputText.trim());
+                                      setTagInputText('');
+                                    }}
+                                 >
+                                    <Plus size={14} /> Add new tag: "{tagInputText.trim()}"
+                                 </div>
+                              )}
+                              
+                              {PREDEFINED_TAGS.filter(tag => tag.toLowerCase().includes(tagInputText.toLowerCase())).length === 0 && tagInputText.trim() === '' && (
+                                <div className="px-4 py-2 text-gray-500 text-sm italic">Type to search...</div>
+                              )}
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
                 <div className="pt-4 flex justify-end gap-4 border-t border-white/10">

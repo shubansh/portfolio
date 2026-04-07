@@ -18,6 +18,17 @@ interface ProjectsProps {
   items: Project[];
 }
 
+const TAG_COLORS: Record<string, string> = {
+  'Design': 'bg-pink-500/10 text-pink-500 border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]',
+  'Video Editing': 'bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]',
+  'Gaming': 'bg-green-500/10 text-green-400 border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)]',
+  'Web Development': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)]',
+  'AI': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]',
+  'Social Media': 'bg-orange-500/10 text-orange-400 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+};
+
+const getTagColor = (tag: string) => TAG_COLORS[tag] || 'bg-[var(--color-neon-blue)]/10 text-[var(--color-neon-blue)] border-[var(--color-neon-blue)]/30 shadow-[0_0_10px_rgba(0,240,255,0.2)]';
+
 const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
   const [items, setItems] = useState<Project[]>(initialItems);
   const [filter, setFilter] = useState('All');
@@ -25,14 +36,18 @@ const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
 
   if (!items || items.length === 0) return null;
 
-  // Extract all unique tags for the filter menu
+  // Extract all unique tags for the filter menu explicitly ensuring array structures
   const allTags = new Set<string>();
-  items.forEach(p => p.tags?.forEach(tag => allTags.add(tag)));
+  items.forEach(p => {
+    if (Array.isArray(p.tags)) {
+       p.tags.forEach(tag => allTags.add(tag));
+    }
+  });
   const categories = ['All', ...Array.from(allTags)];
 
   const filteredItems = filter === 'All' 
     ? items 
-    : items.filter(p => p.tags && p.tags.includes(filter));
+    : items.filter(p => Array.isArray(p.tags) && p.tags.includes(filter));
 
   const handleProjectClick = async (project: Project) => {
     setSelectedProject(project);
@@ -89,7 +104,7 @@ const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
         </motion.div>
 
         <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {filteredItems.map((project, index) => (
               <motion.div
                 layout
@@ -99,7 +114,7 @@ const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.5, delay: index * 0.05, ease: "easeOut" }}
                 onClick={() => handleProjectClick(project)}
-                className="group relative rounded-3xl overflow-hidden glass-panel border border-white/10 hover:border-[var(--color-neon-blue)]/50 transition-all duration-500 bg-white/5 cursor-pointer shadow-lg hover:shadow-[0_15px_40px_rgba(0,240,255,0.15)]"
+                className="group relative rounded-3xl overflow-hidden glass-panel border border-white/10 hover:border-[var(--color-neon-blue)]/50 transition-all duration-500 bg-white/5 cursor-pointer shadow-lg hover:shadow-[0_15px_40px_rgba(0,240,255,0.15)] flex flex-col"
               >
                 {/* Image Container */}
                 <div className="relative aspect-[16/10] overflow-hidden">
@@ -111,37 +126,36 @@ const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
                     className="w-full h-full object-cover transform scale-100 group-hover:scale-110 transition-transform duration-700 ease-out" 
                   />
                   
-                  {/* Overlay Tags */}
-                  <div className="absolute top-4 left-4 z-20 flex gap-2 flex-wrap">
-                    {project.tags && project.tags.map((tag, tIdx) => (
-                      <span key={tIdx} className="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-xs font-bold tracking-wider text-white uppercase shadow-[0_0_10px_rgba(0,0,0,0.5)]">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
                   {/* View Counter Badge */}
-                  <motion.div 
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                  <div 
                     className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-[var(--color-neon-blue)]/50 rounded-full text-xs font-bold text-[var(--color-neon-blue)] shadow-[0_0_10px_rgba(0,240,255,0.3)]"
                   >
                     <Eye size={14} />
                     <span>{project.views || 0}</span>
-                  </motion.div>
+                  </div>
                 </div>
 
-                {/* Card Body */}
-                <div className="p-6 relative z-20 border-t border-white/10 transition-colors duration-500 group-hover:bg-[var(--color-neon-blue)]/5">
-                  <h3 className="text-2xl font-black text-white mb-2 group-hover:text-[var(--color-neon-blue)] transition-colors duration-300">
-                    {project.title}
-                  </h3>
-                  <p className="text-gray-400 line-clamp-2 text-sm leading-relaxed block">
-                    {project.description}
-                  </p>
+                {/* Card Body & Dynamic Tag Badges */}
+                <div className="flex-1 p-6 flex flex-col justify-between relative z-20 border-t border-white/10 transition-colors duration-500 group-hover:bg-[var(--color-neon-blue)]/5">
+                  <div>
+                    <h3 className="text-2xl font-black text-white mb-2 group-hover:text-[var(--color-neon-blue)] transition-colors duration-300">
+                      {project.title}
+                    </h3>
+                    <p className="text-gray-400 line-clamp-2 text-sm leading-relaxed block mb-6">
+                      {project.description}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap mt-auto">
+                    {Array.isArray(project.tags) && project.tags.map((tag, tIdx) => (
+                      <span key={tIdx} className={`px-3 py-1 border rounded-full text-xs font-bold uppercase tracking-wider ${getTagColor(tag)}`}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 
-                {/* Glow strictly limited to the card */}
+                {/* Glow completely scoped to card border */}
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none shadow-[0_0_30px_rgba(0,240,255,0.1)_inset]" />
               </motion.div>
             ))}
@@ -190,12 +204,12 @@ const Projects: React.FC<ProjectsProps> = ({ items: initialItems }) => {
 
               <div className="p-8 md:p-12 relative z-20 -mt-20">
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {selectedProject.tags && selectedProject.tags.map((tag, tIdx) => (
-                    <span key={tIdx} className="px-3 py-1 bg-[var(--color-neon-blue)]/10 border border-[var(--color-neon-blue)]/30 rounded-full text-xs font-bold uppercase tracking-wider text-[var(--color-neon-blue)] drop-shadow-md">
+                  {Array.isArray(selectedProject.tags) && selectedProject.tags.map((tag, tIdx) => (
+                    <span key={tIdx} className={`px-4 py-1.5 border rounded-full text-xs font-bold uppercase tracking-wider ${getTagColor(tag)}`}>
                       {tag}
                     </span>
                   ))}
-                  <span className="px-3 py-1 flex items-center gap-1.5 bg-pink-500/10 border border-pink-500/30 rounded-full text-xs font-bold text-pink-500">
+                  <span className="px-3 py-1.5 flex items-center gap-1.5 bg-pink-500/10 border border-pink-500/30 rounded-full text-xs font-bold text-pink-500">
                     <Eye size={14} /> {selectedProject.views || 0} Views
                   </span>
                 </div>
