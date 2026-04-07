@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Shubhanshu Bilgaiyan - Premium Portfolio
 
 A high-end, responsive, and dynamic portfolio built with React (Vite), Tailwind CSS v4, Framer Motion, and Supabase.
@@ -102,3 +103,6 @@ npm run dev
 ## Dynamic Content Rules
 - Projects and Videos will only appear on the public portfolio if added via the `/admin` dashboard.
 - The 'Download Resume' button will only render dynamically if you've populated the `resume_url` field in the Admin settings.
+=======
+# portfolio
+>>>>>>> 22a94ac9b8834632de52400a27311831fcc37ed6
