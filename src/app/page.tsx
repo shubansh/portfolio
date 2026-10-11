@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { 
   Mail, Gamepad2, Video, 
   Monitor, Code, Image as ImageIcon, Send, ExternalLink, 
@@ -32,12 +32,12 @@ import {
 } from "@/lib/supabase";
 
 // Reusable Animation Variants
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
